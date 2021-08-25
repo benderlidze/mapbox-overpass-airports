@@ -111,16 +111,32 @@
                 'filter': ['==', '$type', 'Point']
             });
 
+            const airportInfo = (e) => {
+                console.log('e', e.features[0].properties);
+                console.log('e', e);
+
+                const description = JSON.stringify(e.features[0].properties, undefined, 2)
+                // Ensure that if the map is zoomed out such that multiple
+                // copies of the feature are visible, the popup appears
+                // over the copy being pointed to.
+
+                const pop = new mapboxgl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(`<pre class="box">${description}</pre>`)
+                    .addTo(map);
+
+            }
 
 
             map.on('moveend', e => {
 
+                if (map.getZoom() < 9) {
+                    alert("Zoom in for results")
+                    return;
+                }
+
                 const bounds = map.getBounds().toArray().map(i => i.reverse()).flat();
-                console.log('bounds', bounds);
-
                 loadingDiv.style.display = 'flex'
-
-                //var query = `[out:json][timeout:25];(node["aeroway"="aerodrome"](${bounds}););out;>;out skel qt;`
                 const query = `[out:json][timeout:25];(node["aeroway"="aerodrome"](${bounds});way["aeroway"="aerodrome"](${bounds});relation["aeroway"="aerodrome"](${bounds}););out;>;out skel qt;`
                 fetch('https://overpass-api.de/api/interpreter', {
                     method: "POST",
@@ -134,25 +150,31 @@
 
                         /*
                         if (json.elements && json.elements.length > 0) {
-
+                            
                             const ports = json.elements.map(i => {
                                 const p = turf.point([i.lon, i.lat], { ...i });
                                 return p
                             })
-
+                            
                             const collection = turf.featureCollection(ports);
                             console.log('ports', ports);
                             console.log('collection', collection);
-
+                            
                             map.getSource("airports").setData(collection)
+                            
+                        }
+                        */
+                        const geometry = osmtogeojson(json)
+                        map.getSource("airports").setData(geometry)
 
-                       }
-                       */
-                       const geometry = osmtogeojson(json)
-                       map.getSource("airports").setData(geometry)
-
-                    });
+                    })
+                    .catch(e => {
+                        alert(e)
+                    })
             })
+
+            map.on('click', 'dot', airportInfo)
+            map.on('click', 'poly', airportInfo)
 
         })
 
